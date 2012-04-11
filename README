@@ -1,0 +1,18 @@
+Rednet Transfer Protocol
+An (approximate) implementation of the HTTP/1.1 standard for use with
+ComputerCraft. The purpose of the RTP protocol is to facillitate the creation
+and usage of vast wireless Rednet networks by allowing stateless comminucation
+between arbitrary clients of such a network.
+
+Note that, while RTP is based heavily on the HTTP/1.1 standard, no explicit
+guarantee of compliance is made. Rather HTTP is used as a model for RTP's
+behaviors and data structures, in a general sense. RTP's complexity is far
+lower than that of HTTP (and its developer resources far more limited), thus
+many advanced features should be expected to be missing.
+
+RTP is, however, open source, and free to be modified. The source is available
+on GitHub [<insert GitHub address here>], and anyone with the time and
+inclination is encouraged to fork it and make their own upgrades. If you make
+something cool, tell me about it!
+
+Matthew DiBernardo [04.09.2012]
