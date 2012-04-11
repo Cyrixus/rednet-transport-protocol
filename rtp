@@ -1,0 +1,98 @@
+--[[
+    rtp.lua
+    
+    Client/Host definition file.
+    
+    Matthew DiBernardo [04.10.2012]
+]]--
+
+-- Includes
+os.loadAPI("json.lua")
+os.loadAPI("util.lua")
+
+--  Constants
+local rtpVersion = "RTP/0.1" -- Increment this on every feature revision.
+
+local function splitUri(uri)
+    -- Identify the protocol
+    local protocol = nil
+    protoEnd = string.find(uri, "//") -- find the end of the protocol, if it exists
+    if protoEnd ~= nil then
+        protocol = string.sub(uri, 1, protoEnd-1)
+    else
+        protocol = "rtp:"
+    end
+    
+    -- RTP is the only valid protocol right now
+    if protocol == "rtp:" then
+        dest = string.sub(uri, protoEnd+2) -- Destination == URI - protocol
+        
+        -- Extract the host and address from the URI
+        local host = nil
+        local address = nil
+        
+        hostEnd = string.find(dest, "/")
+        if hostEnd ~= nil then
+            host = string.sub(dest, 1, hostEnd-1)
+            address = string.sub(dest, hostEnd)
+        else
+            host = dest
+            address = "/"
+        end
+        
+        -- Success! Return the host and address
+        return host, address
+    end
+    
+    -- We couldn't parse the address, so return nothing
+    return nil, nil
+end
+
+function addHeader(rtpMessage, headerName, headerValue)
+    rtpMessage["Header"][headerName] = headerValue;
+end
+
+function setBody(rtpMessage, contentType, content)
+    addHeader(rtpMessage, "Content-Type", contentType)
+    rtpMessage["Body"] = content
+end
+
+function createRequest(method, uri)
+    -- Split the uri into host and address
+    host, address = splitUri(uri)
+    
+    if host == nil and address == nil then
+        return nil
+    end
+
+    local request = {
+        ["Type"] = "REQUEST",
+        ["URI"] = uri,
+        ["RTP-Version"] = rtpVersion
+    }
+    
+    return request
+end
+
+function createResponse(statusCode)
+    local response = {
+        ["Type"] = "RESPONSE",
+        ["Status"] = statusCode,
+        ["RTP-Version"] = rtpVersion
+    }
+end
+
+function makeRequest(id, request)
+    side = util.findPeripheralSide("modem")
+    rednet.open(side)
+    rednet.send(id, request)
+    rednet.close(side)
+end
+
+function listen(timeout)
+    side = util.findPeripheralSide("modem")
+    rednet.open(side)
+    id, message = rednet.receive(timeout)
+    rednet.close(side)
+    return id, message
+end
