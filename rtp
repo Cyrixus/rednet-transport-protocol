@@ -11,6 +11,11 @@
 --  Constants
 local rtpVersion = "RTP/0.1" -- Increment this on every feature revision.
 
+local hostsFile = "/etc/hosts" -- Host overrides
+local resolvFile = "/etc/resolv" -- Resolution File
+local hostnameFile = "/etc/hostname" -- Hostname for this machine
+local cacheFile = "/var/cache/rtpcache"
+
 --[[
     splitUri()
     A function for splitting a uri into its host and address components.
@@ -85,6 +90,7 @@ function RtpMessage:toString()
     return json.Encode(self._m)
 end
 
+
 -- Request Class
 RtpRequest = RtpMessage:create()
 
@@ -103,6 +109,7 @@ function RtpRequest:create(method, uri)
     return o
 end
 
+
 -- Response Class
 RtpResponse = RtpMessage:create()
 
@@ -111,6 +118,35 @@ function RtpResponse:create(statusCode)
     o._m["Type"] = "RESPONSE"
     o._m["Status"] = statusCode
     return o
+end
+
+--[[
+    Define Client and Host objects
+]]
+
+-- Client Class
+RtpClient = {}
+
+function RtpClient:create(o)
+    o = o or {}
+    setmetatable(o, self)
+    self.__index = self
+    return o
+end
+
+function RtpClient:send(request)
+    -- Step 1: Make sure we have an IP address and are connected to the network
+        -- i.   Validate DHCP from resolvFile
+        -- ii.  If DHCP returns NAK or does not exist
+            --  Look for DHCP in range, 
+        
+    -- Step 2: Resolve target's Hostname to IP
+        -- i.   Check hostsFile
+        -- ii.  Check cacheFile
+        -- iii. Resolve hostname via namespaces specified in resolvFile
+        
+    -- Step 3: Send the Message to IP via next-level Domain
+        -- i.   Fetch the nameserver from
 end
 
 
