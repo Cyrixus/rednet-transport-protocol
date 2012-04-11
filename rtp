@@ -7,13 +7,19 @@
 ]]--
 
 -- Includes
-os.loadAPI("json.lua")
-os.loadAPI("util.lua")
 
 --  Constants
 local rtpVersion = "RTP/0.1" -- Increment this on every feature revision.
 
+--[[
+    splitUri()
+    A function for splitting a uri into its host and address components.
+]]
 local function splitUri(uri)
+    if uri == nil then
+        return nil
+    end
+
     -- Identify the protocol
     local protocol = nil
     protoEnd = string.find(uri, "//") -- find the end of the protocol, if it exists
@@ -48,40 +54,67 @@ local function splitUri(uri)
     return nil, nil
 end
 
-function addHeader(rtpMessage, headerName, headerValue)
-    rtpMessage["Header"][headerName] = headerValue;
+--[[
+    Define Request and Response objects
+]]
+
+-- Base RtpMessage and header/body manipulation
+RtpMessage = {_m = {["RTP-Version"] = rtpVersion}}
+
+function RtpMessage:addHeader(headerName, headerValue)
+    self._m["Header"][headerName] = headerValue
 end
 
-function setBody(rtpMessage, contentType, content)
+function RtpMessage:removeHeader(headerName)
+    self._m["Header"][headerName] = nil
+end
+
+function RtpMessage:setBody(rtpMessage, contentType, content)
     addHeader(rtpMessage, "Content-Type", contentType)
-    rtpMessage["Body"] = content
+    self._m["Body"] = content
 end
 
-function createRequest(method, uri)
-    -- Split the uri into host and address
+function RtpMessage:create(o)
+    o = o or {}
+    setmetatable(o, self)
+    self.__index = self
+    return o
+end
+
+function RtpMessage:toString()
+    return json.Encode(self._m)
+end
+
+-- Request Class
+RtpRequest = RtpMessage:create()
+
+function RtpRequest:create(method, uri)
+    local host, address
     host, address = splitUri(uri)
     
     if host == nil and address == nil then
         return nil
     end
-
-    local request = {
-        ["Type"] = "REQUEST",
-        ["URI"] = uri,
-        ["RTP-Version"] = rtpVersion
-    }
     
-    return request
+    o = RtpMessage:create()
+    o._m["Type"] = "REQUEST"
+    o._m["Method"] = method
+    o._m["URI"] = uri
+    return o
 end
 
-function createResponse(statusCode)
-    local response = {
-        ["Type"] = "RESPONSE",
-        ["Status"] = statusCode,
-        ["RTP-Version"] = rtpVersion
-    }
+-- Response Class
+RtpResponse = RtpMessage:create()
+
+function RtpResponse:create(statusCode)
+    o = RtpMessage:create()
+    o._m["Type"] = "RESPONSE"
+    o._m["Status"] = statusCode
+    return o
 end
 
+
+-- Rudimentary client/server implementations
 function makeRequest(id, request)
     side = util.findPeripheralSide("modem")
     rednet.open(side)
