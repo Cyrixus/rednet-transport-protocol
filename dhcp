@@ -34,3 +34,29 @@
     
     Matthew DiBernardo [04.11.2012]
 ]]--
+
+-- Constants
+local resolvFile = "/etc/resolv"
+local cacheFile = "/var/cache/rtpcache"
+
+local validationTimeout = 10
+
+function requestDHCPValidation()
+    localRpAddr = util.RtpFile:getFirstEntry(resolvFile, "self")
+    -- If we don't have an RP Address for this machine, it's obviously not valid
+    if localRpAddr == nil then
+        return false
+    end
+    
+    dhcp = util.RtpFile:getFirstEntry(resolvFile, "dhcp")
+    if dhcp == nil then
+        return false
+    end
+    id = tonumber(util.RtpFile:getFirstEntry(cacheFile, dhcp))
+    
+    request = rtp.RtpRequest:create("DHCPVALIDATE", dhcp)
+    request:setBody("text", localRpAddr)
+    
+    rtp.makeRequest(id, request:toString())
+    return true
+end

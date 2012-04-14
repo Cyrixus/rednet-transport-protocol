@@ -16,48 +16,7 @@ local resolvFile = "/etc/resolv" -- Resolution File
 local hostnameFile = "/etc/hostname" -- Hostname for this machine
 local cacheFile = "/var/cache/rtpcache"
 
---[[
-    splitUri()
-    A function for splitting a uri into its host and address components.
-]]
-local function splitUri(uri)
-    if uri == nil then
-        return nil
-    end
 
-    -- Identify the protocol
-    local protocol = nil
-    protoEnd = string.find(uri, "//") -- find the end of the protocol, if it exists
-    if protoEnd ~= nil then
-        protocol = string.sub(uri, 1, protoEnd-1)
-    else
-        protocol = "rtp:"
-    end
-    
-    -- RTP is the only valid protocol right now
-    if protocol == "rtp:" then
-        dest = string.sub(uri, protoEnd+2) -- Destination == URI - protocol
-        
-        -- Extract the host and address from the URI
-        local host = nil
-        local address = nil
-        
-        hostEnd = string.find(dest, "/")
-        if hostEnd ~= nil then
-            host = string.sub(dest, 1, hostEnd-1)
-            address = string.sub(dest, hostEnd)
-        else
-            host = dest
-            address = "/"
-        end
-        
-        -- Success! Return the host and address
-        return host, address
-    end
-    
-    -- We couldn't parse the address, so return nothing
-    return nil, nil
-end
 
 --[[
     Define Request and Response objects
@@ -67,15 +26,19 @@ end
 RtpMessage = {_m = {["RTP-Version"] = rtpVersion}}
 
 function RtpMessage:addHeader(headerName, headerValue)
+    if self._m["Header"] == nil then
+        self._m["Header"] = {}
+    end
     self._m["Header"][headerName] = headerValue
 end
 
 function RtpMessage:removeHeader(headerName)
+    if self._m["Header"] == nil then return end
     self._m["Header"][headerName] = nil
 end
 
-function RtpMessage:setBody(rtpMessage, contentType, content)
-    addHeader(rtpMessage, "Content-Type", contentType)
+function RtpMessage:setBody(contentType, content)
+    self:addHeader("Content-Type", contentType)
     self._m["Body"] = content
 end
 
@@ -96,7 +59,7 @@ RtpRequest = RtpMessage:create()
 
 function RtpRequest:create(method, uri)
     local host, address
-    host, address = splitUri(uri)
+    host, address = util.splitUri(uri)
     
     if host == nil and address == nil then
         return nil
@@ -134,19 +97,25 @@ function RtpClient:create(o)
     return o
 end
 
-function RtpClient:send(request)
     -- Step 1: Make sure we have an IP address and are connected to the network
         -- i.   Validate DHCP from resolvFile
         -- ii.  If DHCP returns NAK or does not exist
-            --  Look for DHCP in range, 
-        
-    -- Step 2: Resolve target's Hostname to IP
+            --  Look for DHCP in range,
+
+function RtpClient:send(request)
+    -- Step 1: Resolve target's Hostname to IP
         -- i.   Check hostsFile
         -- ii.  Check cacheFile
         -- iii. Resolve hostname via namespaces specified in resolvFile
         
-    -- Step 3: Send the Message to IP via next-level Domain
-        -- i.   Fetch the nameserver from
+    -- Step 2: Send the Message to IP via next-level Domain
+        -- i.   Send message to upstream DHCP/Router
+end
+
+-- When broadcasting, the URI acts as a RP filter, to determine how far upstream
+-- to propagate the signal.
+function RtpClient:broadcast(request)
+    side = util.findPeripheralSide("modem")
 end
 
 

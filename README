@@ -13,7 +13,7 @@ lower than that of HTTP (and its developer resources far more limited), thus
 many advanced features should be expected to be missing.
 
 RTP is, however, open source, and free to be modified. The source is available
-on GitHub [<insert GitHub address here>], and anyone with the time and
+on GitHub [https://github.com/Cyrixus/rednet-transport-protocol], and anyone with the time and
 inclination is encouraged to fork it and make their own upgrades. If you make
 something cool, tell me about it!
 
