@@ -6,8 +6,6 @@
     Matthew DiBeranrdo [04.14.2012]
 ]]--
 
--- Includes
-
 -- Constants
 local hostsFile = "/etc/hosts" -- Host overrides
 local resolvFile = "/etc/resolv" -- Resolution File

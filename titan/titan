@@ -6,16 +6,23 @@
     Matthew DiBeranrdo [04.13.2012]
 ]]--
 
--- Main Titan Class
+-- Event Map
+local eventMap = {
+    ["RTP-REQUEST"] = Titan:handleRequest
+}
+
+--[[ Main Titan Class ]]--
 Titan = {}
 
+-- Titan Start Method
 function Titan:start()
-
+    local handler = EventHandler:create()
+    
 end
 
 
--- Titan Listen Server
-function rtpListen()
+-- Titan Listen Method
+function Titan:listen()
     while true do
         msg = rtp.listen(10) -- Wait for a message
         if msg ~= nil then
@@ -25,9 +32,26 @@ function rtpListen()
     end
 end
 
+-- Titan Request Handler
+function Titan:handleRequest(msg)
+    msgJson = json.Encode(msg)
+    print("Received " .. msg["Method"] .. " request, sending response.")
+    response = rtp.RtpResponse:create(400)
+    response:setBody("json", msgJson)
+    rtp.makeRequest(response)
+end
 
--- Titan Event Handler
+
+--[[ Event Handler Class ]]--
 EventHandler = {_e = {}}
+
+function EventHander:create(e)
+    o = {}
+    setmetatable(o, self)
+    self.__index = self
+    o._e = e or {}
+    return o
+end
 
 function EventHandler:registerEvent(event, method)
     self._e[event] = method
@@ -46,6 +70,6 @@ end
 function EventHandler:listen()
     while true do
         event, msg = os.pullEventRaw()
-        status = EventHandler:handle(event, msg)
+        status = self:handle(event, msg)
     end
 end

@@ -114,8 +114,7 @@ function RtpClient:send(request)
         -- i.   Send message to upstream DHCP/Router
 end
 
--- When broadcasting, the URI acts as a RP filter, to determine how far upstream
--- to propagate the signal.
+-- When broadcasting, the URI is used as an IP filter
 function RtpClient:broadcast(request)
     side = rtp_util.findPeripheralSide("modem")
 end
