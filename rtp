@@ -7,6 +7,8 @@
 ]]--
 
 -- Includes
+if not rtp_util then os.loadAPI("/lib/rtp_util") end
+if not json then os.loadAPI("/lib/json") end
 
 --  Constants
 local rtpVersion = "RTP/0.1" -- Increment this on every feature revision.
@@ -59,7 +61,7 @@ RtpRequest = RtpMessage:create()
 
 function RtpRequest:create(method, uri)
     local host, address
-    host, address = util.splitUri(uri)
+    host, address = rtp_util.splitUri(uri)
     
     if host == nil and address == nil then
         return nil
@@ -115,20 +117,20 @@ end
 -- When broadcasting, the URI acts as a RP filter, to determine how far upstream
 -- to propagate the signal.
 function RtpClient:broadcast(request)
-    side = util.findPeripheralSide("modem")
+    side = rtp_util.findPeripheralSide("modem")
 end
 
 
 -- Rudimentary client/server implementations
 function makeRequest(id, request)
-    side = util.findPeripheralSide("modem")
+    side = rtp_util.findPeripheralSide("modem")
     rednet.open(side)
     rednet.send(id, request)
     rednet.close(side)
 end
 
 function listen(timeout)
-    side = util.findPeripheralSide("modem")
+    side = rtp_util.findPeripheralSide("modem")
     rednet.open(side)
     id, message = rednet.receive(timeout)
     rednet.close(side)
