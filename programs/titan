@@ -1,0 +1,80 @@
+--[[
+    titan
+    
+    An RTP webhost. Titan is basically analogous to real-world Apache.
+    
+    Matthew DiBeranrdo [04.13.2012]
+]]--
+
+-- Event Map
+local eventMap = {
+    ["RTP-REQUEST"] = Titan:handleRequest
+}
+
+--[[ Main Titan Class ]]--
+Titan = {}
+
+-- Titan Start Method
+function Titan:start()
+    local handler = EventHandler:create()
+    
+    for event, method in eventMap
+        handler:registerEvent(event, method)
+    end
+    
+    handler:listen()
+end
+
+
+-- Titan Listen Method
+function Titan:listen()
+    while true do
+        msg = rtp.listen(10) -- Wait for a message
+        if msg ~= nil then
+            mArr = json.Decode(msg)
+            os.pushEvent("RTP-"..mArr["Type"], mArr)
+        end
+    end
+end
+
+-- Titan Request Handler
+function Titan:handleRequest(msg)
+    print("Received " .. msg["Method"] .. " request, sending [200/OK] response.")
+    response = rtp.RtpResponse:create(msg, 200)
+    rtp.makeRequest(response)
+end
+
+
+--[[ Event Handler Class ]]--
+EventHandler = {_e = {}}
+
+function EventHander:create(e)
+    o = {}
+    setmetatable(o, self)
+    self.__index = self
+    o._e = e or {}
+    return o
+end
+
+function EventHandler:registerEvent(event, method)
+    self._e[event] = method
+end
+
+function EventHandler:unregisterEvent(event)
+    self._e[event] = nil
+end
+
+function EventHandler:handle(event, msg)
+    if self._e[event] != nil then
+        return self._e[event](msg)
+    end
+end
+
+function EventHandler:listen()
+    while true do
+        event, msg = os.pullEventRaw()
+        status = self:handle(event, msg)
+    end
+end
+
+Titan:start()

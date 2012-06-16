@@ -1,0 +1,189 @@
+--[[
+    rtp.lua
+    
+    Client/Host definition file.
+    
+    Matthew DiBernardo [04.10.2012]
+]]--
+
+-- Includes
+if not rtp_util then os.loadAPI("/lib/rtp_util") end
+if not rtp_files then os.loadAPI("/lib/rtp_files") end
+if not json then os.loadAPI("/lib/json") end
+
+--  Constants
+local rtpVersion = "RTP/0.1" -- Increment this on every feature revision.
+
+local hostsFile = "/etc/hosts" -- Host overrides
+local resolvFile = "/etc/resolv" -- Resolution File
+local hostnameFile = "/etc/hostname" -- Hostname for this machine
+local cacheFile = "/var/cache/rtpcache" -- Cache File
+
+
+--[[
+    Basic RedNet functions
+]]
+
+function broadcast(msg)
+    side = rtp_util.findPeripheralSide("modem")
+    rednet.open(side)
+    rednet.broadcast(msg)
+    rednet.close(side)
+end
+
+function send(id, msg)
+    side = rtp_util.findPeripheralSide("modem")
+    rednet.open(side)
+    rednet.send(id, msg)
+    rednet.close(side)
+end
+
+function listen(timeout)
+    side = rtp_util.findPeripheralSide("modem")
+    rednet.open(side)
+    id, message = rednet.receive(timeout)
+    rednet.close(side)
+    return id, message
+end
+
+--[[
+    Address Chain Resolver
+]]
+AddressChainResolver = {}
+
+function AddressChainResolver:create(o)
+    o = o or {}
+    setmetatable(o, self)
+    self.__index = self
+    return o
+end
+
+function 
+
+
+--[[
+    Define Request and Response objects
+]]
+
+-- Base RtpMessage and header/body manipulation
+RtpMessage = {["RTP-Version"] = rtpVersion}
+
+function RtpMessage:addHeader(headerName, headerValue)
+    if self["Header"] == nil then
+        self["Header"] = {}
+    end
+    self["Header"][headerName] = headerValue
+end
+
+function RtpMessage:removeHeader(headerName)
+    if self["Header"] == nil then return end
+    self["Header"][headerName] = nil
+end
+
+function RtpMessage:setBody(contentType, content)
+    self:addHeader("Content-Type", contentType)
+    self["Body"] = content
+end
+
+function RtpMessage:create(o)
+    o = o or {}
+    setmetatable(o, self)
+    self.__index = self
+    return o
+end
+
+function RtpMessage:toString()
+    return json.Encode(self)
+end
+
+-- Send Function
+function RtpMessage:send()
+    -- Update the TraversedLinks header
+    local linksJson = self.Header.TraversedLinks
+    local links = json.Decode(linksJson)
+    
+    links.append(os.computerId())
+    self.addHeader('TraversedLinks', json.Encode(links))
+    
+    -- Try to follow the ResolutionChain as far as it goes.
+    local adrChainJson = self.Header.ResolutionChain
+    local adrChain = json.Decode(adrChainJson); -- Decode the adrChain
+    
+    if adrChain != nil then
+        -- Get the next link in the chain
+        local useNextLink = false
+        for link in adrChain do
+            if useNextLink == true then
+                send(link, self.toString())
+                return true
+            end
+            
+            if link == os.computerID() then
+                useNextLink = true
+            end
+        end
+    end
+    
+    -- If we don't have a resolution chain, try broadcasting the message.
+    broadcast(self.toString())
+    return true
+end
+
+
+-- Request Class
+RtpRequest = RtpMessage:create()
+
+function RtpRequest:create(method, uri)
+    local host, resource
+    host, resource = rtp_util.splitUri(uri)
+    
+    if host == nil and resource == nil then
+        return nil
+    end
+    
+    o = RtpMessage:create()
+    o["Type"] = "REQUEST"
+    o["Method"] = method
+    o["URI"] = uri
+    o["Host"] = host
+    o["Resource"] = resource
+    
+    --[[ Address Resolution ]]--
+    -- Address Resolution Table lookup
+    local resTableEntry = rtp_files.ResolveFile.getFirstEntry(host)
+    
+    -- If I have an address chain, set the ResolutionChain header and exit
+    if resTableEntry != nil then
+        o:addHeader("ResolutionChain", resTableEntry.ResolutionChain)
+        return o
+    end
+    
+    -- If I don't have an address chain, try to resolve for domain only
+    local hostArray = rtp_util.hostStringToArray(host)
+    if hostArray.domain != nil then
+        resTableEntry = rtp_files.ResolveFile.getFirstEntry(hostArray.domain)
+        
+        if resTableEntry != nil then
+            -- Set ResolutionChain header to domain's chain
+            o:addHeader("ResolutionChain", resTableEntry.ResolutionChain)
+            o:addHeader("VerifyAddress", true)
+            return o
+        end
+    end
+    
+    
+    -- If I don't know the domain, leave the ResolutionChain header blank
+    -- Set VerifyAddress header == true
+    o:addHeader("VerifyAddress", true)
+    return o
+end
+
+
+-- Response Class
+RtpResponse = RtpMessage:create()
+
+function RtpResponse:create(msg)
+    msg["Type"] = "RESPONSE"
+    msg["Status"] = statusCode
+    return msg
+end
