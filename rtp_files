@@ -107,15 +107,16 @@ function RtpFile:getFirstEntry(eType)
             end
         end
     end
+    
+    return nil
 end
 
 
 -- Host File
-
 HostFile = RtpFile:create(hostsFile, {"RNA"})
 
 -- Resolv File
-ResolveFile = RtpFile:create(resolvFile, nil)
+ResolveFile = RtpFile:create(resolvFile, {"Target", "ResolutionChain"})
 
 -- Hostname File
 HostnameFile = RtpFile:create(hostnameFile, nil)

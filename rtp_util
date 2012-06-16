@@ -42,21 +42,51 @@ function splitUri(uri)
         
         -- Extract the host and address from the URI
         local host = nil
-        local address = nil
+        local resource = nil
         
         hostEnd = string.find(dest, "/")
         if hostEnd ~= nil then
             host = string.sub(dest, 1, hostEnd-1)
-            address = string.sub(dest, hostEnd)
+            resource = string.sub(dest, hostEnd)
         else
             host = dest
-            address = "/"
+            resource = "/"
         end
         
-        -- Success! Return the host and address
-        return host, address
+        -- Success! Return the host and resource
+        return host, resource
     end
     
-    -- We couldn't parse the address, so return nothing
+    -- We couldn't parse the resource, so return nothing
     return nil, nil
+end
+
+--[[
+    hostStringToArray()
+    A function to split a host string (subdomain.subdomain.domain) into a root
+    domain and a subdomain array.
+]]
+function hostStringToArray(host)
+    if host == nil then
+        return nil
+    end
+    
+    local hostArr = {}
+    
+    -- Extract the Domain
+    local domain = string.strfind(host, "%.(.-)$")
+    
+    if domain == nil then
+        hostArr["domain"] = host
+        return hostArr
+    end
+    
+    hostArr.domain = domain
+    hostArr.subdomains = {}
+    
+    for word in string.gmatch(host, "(.-)%.") do
+        table.insert(hostArr.subdomains, word)
+    end
+    
+    return hostArr
 end

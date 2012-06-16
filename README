@@ -16,18 +16,3 @@ RTP is, however, open source, and free to be modified. The source is available
 on GitHub [https://github.com/Cyrixus/rednet-transport-protocol], and anyone with the time and
 inclination is encouraged to fork it and make their own upgrades. If you make
 something cool, tell me about it!
-
------
-
-Some basic usage:
-
-RTP is designed to work over Rednet, so every device in the network should be
-equipped with a Rednet modem. The side doesn't matter, because the RtpClient/RtpHost
-will auto-detect the periphial. In order to create a network, you must have a DHCP
-server and a DNS Host. First boot the DHCP server with the -gtlp option (Specifying
-that it is a Global Top-Level Provisioner). Then, start up the DNS with the -gtld
-(Global Top-Level Domain) The DNS server will auto-detect the GTLP-DHCP server,
-register itself as a GTLD and start waiting for requests.
-
-Client devices should then be auto-provisioned with RP Addresses when they connect
-for the first time. See the dns-host file for details on registering domains.
