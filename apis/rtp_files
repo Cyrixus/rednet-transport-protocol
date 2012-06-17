@@ -6,9 +6,12 @@
     Matthew DiBeranrdo [04.14.2012]
 ]]--
 
+-- Includes
+-- if not rtp_util then os.loadAPI("/lib/rtp_util")
+
 -- Constants
 local hostsFile = "/etc/hosts" -- Host overrides
-local resolvFile = "/etc/resolv" -- Resolution File
+local resolveFile = "/etc/resolve" -- Resolution File
 local hostnameFile = "/etc/hostname" -- Hostname for this machine
 local cacheFile = "/var/cache/rtpcache" -- Cache file for RP/CompID mapping.
 
@@ -19,7 +22,7 @@ local cacheFile = "/var/cache/rtpcache" -- Cache file for RP/CompID mapping.
 RtpFile = {format = nil}
 
 function RtpFile:create(file, format)
-    o = o or {}
+    o = {}
     setmetatable(o, self)
     self.__index = self
     o.file = file
@@ -28,50 +31,39 @@ function RtpFile:create(file, format)
 end
 
 -- Get Entries
-function RtpFile:getAllEntries(eType)
-    local i = 0
-    local entry
-    
+function RtpFile:getAllEntries(target, targetType)
     -- If there isn't a file by that name, return nothing
     if fs.exists(self.file) == false then
         return nil
     end
     
+    local entryList = {}
+    
     -- Iterate for all entries
     local f = io.open(self.file,"r")
     for line in f:lines() do
-        -- Check to see that this is the right entry type
-        local entryTypeEnd = string.find(line, " ")
-        local entryType = string.sub(line, 1, entryTypeEnd-1)
-        line = string.sub(line, entryTypeEnd+1)
-        if entryType == eType then
-            if self.format == nil then
-                entry[i] = {["Type"] = entryType, ["Value"] = line}
-            else
-                -- Split the entry into it's component parts
-                entry[i] = {}
-                entry[i]["Type"] = entryType
-                for f in format do
-                    vEnd = string.find(line, " ")
-                    if vEnd ~= nil then
-                        v = string.sub(line, vEnd-1)
-                        line = string.sub(line, vEnd+1)
-                    else
-                        v = nil
-                    end
-                    
-                    entry[i][f] = v
-                end
+        -- Break the line into an array of assigned types
+        local i = 1
+        local entry = {}
+        for v in string.gmatch(line, "([^%s]*)") do
+            local type = ""
+            if self.format[i] ~= nil then
+                type = self.format[i]
             end
-            i = i + 1
+            entry[type] = v
+        end
+        
+        -- If this is a match, add the entry to the return list
+        if entry[targetType] == target then
+            table.insert(entryList, entry)
         end
     end
     
-    return entry
+    return entryList
 end
 
 -- Get just the first entry
-function RtpFile:getFirstEntry(eType)
+function RtpFile:getFirstEntry(target, targetType)
     -- If there isn't a file by that name, return nothing
     if fs.exists(self.file) == false then
         return nil
@@ -80,32 +72,22 @@ function RtpFile:getFirstEntry(eType)
     -- Iterate for all entries
     local f = io.open(self.file,"r")
     for line in f:lines() do
-        -- Check to see that this is the right entry type
-        local entryTypeEnd = string.find(line, " ")
-        local entryType = string.sub(line, 1, entryTypeEnd-1)
-        line = string.sub(line, entryTypeEnd+1)
-        if entryType == eType then
-            if self.format == nil then
-                return {["Type"] = entryType, ["Value"] = line}
-            else
-                -- Split the entry into it's component parts
-                local entry = {}
-                entry["Type"] = entryType
-                for f in format do
-                    vEnd = string.find(line, " ")
-                    if vEnd ~= nil then
-                        v = string.sub(line, vEnd-1)
-                        line = string.sub(line, vEnd+1)
-                    else
-                        v = nil
-                    end
-                    
-                    entry[f] = v
-                end
-                
-                return entry
+        -- Break the line into an array of assigned types
+        local i = 1
+        local entry = {}
+        for _,v in ipairs(rtp_util.split(line, "%s")) do
+            local type = ""
+            if self.format[i] ~= nil then
+                type = self.format[i]
             end
+            entry[type] = v
+            i = i + 1
         end
+        
+        -- If this is a match, return it
+        --if entry[targetType] == target then
+            return entry
+        --end
     end
     
     return nil
@@ -115,11 +97,11 @@ end
 -- Host File
 HostFile = RtpFile:create(hostsFile, {"RNA"})
 
--- Resolv File
-ResolveFile = RtpFile:create(resolvFile, {"Target", "ResolutionChain"})
+-- Resolve File
+ResolveFile = RtpFile:create(resolveFile, {"Target", "ResolutionChain"})
 
 -- Hostname File
-HostnameFile = RtpFile:create(hostnameFile, nil)
+HostnameFile = RtpFile:create(hostnameFile, {"Hostname"})
 
 -- Cache File
 RtpCacheFile = RtpFile:create(cacheFile, {"Target", "HopCount", "Hops", "Timestamp", "TTL"})

@@ -7,9 +7,9 @@
 ]]--
 
 -- Includes
-if not rtp_util then os.loadAPI("/lib/rtp_util") end
-if not rtp_files then os.loadAPI("/lib/rtp_files") end
-if not json then os.loadAPI("/lib/json") end
+--if not rtp_util then os.loadAPI("/lib/rtp_util") end
+--if not rtp_files then os.loadAPI("/lib/rtp_files") end
+--if not json then os.loadAPI("/lib/json") end
 
 --  Constants
 local rtpVersion = "RTP/0.1" -- Increment this on every feature revision.
@@ -29,6 +29,7 @@ function broadcast(msg)
     rednet.open(side)
     rednet.broadcast(msg)
     rednet.close(side)
+    print("Packet broadcast to all machines in range, content: "..msg)
 end
 
 function send(id, msg)
@@ -36,6 +37,7 @@ function send(id, msg)
     rednet.open(side)
     rednet.send(id, msg)
     rednet.close(side)
+    print("Packet sent to ["..id.."], content: "..msg)
 end
 
 function listen(timeout)
@@ -58,7 +60,13 @@ function AddressChainResolver:create(o)
     return o
 end
 
-function 
+function AddressChainResolver:resolve(addr)
+
+end
+
+function AddressChainResolver:flip(chain)
+
+end
 
 
 --[[
@@ -89,6 +97,7 @@ function RtpMessage:create(o)
     o = o or {}
     setmetatable(o, self)
     self.__index = self
+    self["Header"] = {}
     return o
 end
 
@@ -99,22 +108,32 @@ end
 -- Send Function
 function RtpMessage:send()
     -- Update the TraversedLinks header
-    local linksJson = self.Header.TraversedLinks
-    local links = json.Decode(linksJson)
+    local links = {}
+    if self.Header ~= nil then
+        local linksJson = self.Header.TraversedLinks
+        if linksJson ~= nil then
+            print("Decoding Links")
+            links = json.Decode(linksJson)
+        end
+    end
     
-    links.append(os.computerId())
-    self.addHeader('TraversedLinks', json.Encode(links))
+    table.insert(links, os.computerID())
+    self:addHeader('TraversedLinks', json.Encode(links))
     
     -- Try to follow the ResolutionChain as far as it goes.
     local adrChainJson = self.Header.ResolutionChain
-    local adrChain = json.Decode(adrChainJson); -- Decode the adrChain
+    local adrChain = nil
+    if adrChainJson ~= nil then
+        print("Decoding adrChain")
+        adrChain = json.Decode(adrChainJson) -- Decode the adrChain
+    end
     
-    if adrChain != nil then
+    if adrChain ~= nil then
         -- Get the next link in the chain
         local useNextLink = false
         for link in adrChain do
             if useNextLink == true then
-                send(link, self.toString())
+                send(link, self:toString())
                 return true
             end
             
@@ -125,7 +144,7 @@ function RtpMessage:send()
     end
     
     -- If we don't have a resolution chain, try broadcasting the message.
-    broadcast(self.toString())
+    broadcast(self:toString())
     return true
 end
 
@@ -150,20 +169,20 @@ function RtpRequest:create(method, uri)
     
     --[[ Address Resolution ]]--
     -- Address Resolution Table lookup
-    local resTableEntry = rtp_files.ResolveFile.getFirstEntry(host)
+    local resTableEntry = rtp_files.ResolveFile:getFirstEntry(host)
     
     -- If I have an address chain, set the ResolutionChain header and exit
-    if resTableEntry != nil then
+    if resTableEntry ~= nil then
         o:addHeader("ResolutionChain", resTableEntry.ResolutionChain)
         return o
     end
     
     -- If I don't have an address chain, try to resolve for domain only
     local hostArray = rtp_util.hostStringToArray(host)
-    if hostArray.domain != nil then
-        resTableEntry = rtp_files.ResolveFile.getFirstEntry(hostArray.domain)
+    if hostArray.domain ~= nil then
+        resTableEntry = rtp_files.ResolveFile:getFirstEntry(hostArray.domain)
         
-        if resTableEntry != nil then
+        if resTableEntry ~= nil then
             -- Set ResolutionChain header to domain's chain
             o:addHeader("ResolutionChain", resTableEntry.ResolutionChain)
             o:addHeader("VerifyAddress", true)

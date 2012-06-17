@@ -6,31 +6,29 @@
     Matthew DiBeranrdo [04.13.2012]
 ]]--
 
--- Event Map
-local eventMap = {
-    ["RTP-REQUEST"] = Titan:handleRequest
-}
+--[[ Includes ]]--
+if not rtp then os.loadAPI("/lib/rtp") end
+
 
 --[[ Main Titan Class ]]--
 Titan = {}
 
 -- Titan Start Method
-function Titan:start()
-    local handler = EventHandler:create()
+function Titan:start(events, commands)
     
-    for event, method in eventMap
-        handler:registerEvent(event, method)
-    end
-    
-    handler:listen()
+    local handler = EventHandler:create(events)
+    parallel.waitForAny(Titan:console(commands), handler:listen(), Titan:listen())
+    -- TODO: Shutdown Threads
 end
 
 
 -- Titan Listen Method
 function Titan:listen()
+    print("Titan has begun listening...")
     while true do
         msg = rtp.listen(10) -- Wait for a message
         if msg ~= nil then
+            print("Titan got a new message: " .. msg)
             mArr = json.Decode(msg)
             os.pushEvent("RTP-"..mArr["Type"], mArr)
         end
@@ -44,11 +42,53 @@ function Titan:handleRequest(msg)
     rtp.makeRequest(response)
 end
 
+-- Titan Response Handler
+function Titan:handleResponse(msg)
+    if msg["Status"] == 200 then
+        print("Received ACK [200/OK] response.")
+        return;
+    end
+    
+    print("Received unhandled response code: [" .. msg["Status"] .. "]")
+end
+
+-- Titan sendRequest Command
+function Titan:sendRequest()
+    print("Sending Request [Method:\"bullshit\"] to Computer ID [1]")
+    local req = rtp.RtpRequest:create("bullshit", "rtp://1")
+    req:send()
+end
+
+-- Titan sendResponse Command
+function Titan:sendResponse()
+end
+
+-- Titan Console
+function Titan:console(commandList)
+    term.clear()
+    term.setCursorPos(1,1)
+    print("Titan console started.")
+    term.setCursorPos(1,2)
+    term.setCursorBlink(true)
+    
+    while true do
+        local input = read()
+        if input == "exit" then
+            return true
+        end
+        
+        if commandList[input] ~= nil then
+            print("Running Command \""..input.."\"")
+            Titan[input]()
+        end
+    end
+end
+
 
 --[[ Event Handler Class ]]--
-EventHandler = {_e = {}}
+EventHandler = {}
 
-function EventHander:create(e)
+function EventHandler:create(e)
     o = {}
     setmetatable(o, self)
     self.__index = self
@@ -65,16 +105,31 @@ function EventHandler:unregisterEvent(event)
 end
 
 function EventHandler:handle(event, msg)
-    if self._e[event] != nil then
+    if self._e[event] ~= nil then
         return self._e[event](msg)
     end
 end
 
 function EventHandler:listen()
     while true do
-        event, msg = os.pullEventRaw()
+        event, msg = os.pullEvent()
         status = self:handle(event, msg)
+        --print("Event handler got a new event: " .. event)
     end
 end
 
-Titan:start()
+
+--[[ Actual Program ]]--
+
+-- Default Event Map
+local eventMap = {
+    ["RTP-REQUEST"] = "Titan.handleRequest",
+    ["RTP-RESPONSE"] = "Titan.handleResponse"
+}
+
+local commandMap = {
+    ["sendRequest"] = "Titan.sendRequest",
+    ["sendResponse"] = "Titan.sendResponse"
+}
+
+Titan:start(eventMap, commandMap)
